@@ -1,0 +1,13 @@
+Name: Onesock
+Version: 0.1
+Description: Process a flood of incoming bills
+License: GPL
+License-file: LICENSE
+Author: Jason Felice
+Maintainer: jason.m.felice@gmail.com
+Build-Type: Simple
+Cabal-Version: >= 1.2
+
+Executable test
+  main-is: Onesock/Test/Main.hs
+  Build-Depends: base >= 4, HUnit
