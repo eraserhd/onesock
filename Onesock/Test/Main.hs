@@ -4,10 +4,10 @@ module Main where
 import Test.HUnit
 import System.Environment (getArgs)
 
-import qualified Onesock.DB.Image as ImageDB (tests)
+import qualified Onesock.DB.Scans as ScanDB (tests)
 
 tests = TestList [
-          ImageDB.tests 
+          ScanDB.tests 
         ]
 
 main = runTestTT tests

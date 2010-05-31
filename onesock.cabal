@@ -10,4 +10,11 @@ Cabal-Version: >= 1.2
 
 Executable test
   main-is: Onesock/Test/Main.hs
-  Build-Depends: base >= 4, HUnit
+  Build-Depends:
+    base >= 4,
+    directory,
+    HUnit,
+    random,
+    uuid, 
+    bitmap,
+    gd >= 3000.4.1
