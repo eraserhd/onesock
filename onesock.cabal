@@ -1,4 +1,4 @@
-Name: Onesock
+Name: OneSock
 Version: 0.1
 Description: Process a flood of incoming bills
 License: GPL
@@ -8,8 +8,8 @@ Maintainer: jason.m.felice@gmail.com
 Build-Type: Simple
 Cabal-Version: >= 1.2
 
-Executable test
-  main-is: Onesock/Test/Main.hs
+Executable OneSock
+  main-is: OneSock/Main.hs
   Build-Depends:
     base >= 4,
     directory,
