@@ -14,12 +14,13 @@ import OneSock.ImageUtil
 import Control.Monad
 import Data.UUID
 import qualified Graphics.GD as GD
+import OneSock.GUI (runGUI)
 
 tests = TestList [
           testsForOnesockDBScans
         ]
 
-data Mode = Test | DoScan | StoreScan
+data Mode = Test | DoScan | StoreScan | RunGUI
 data Flag = ModeFlag Mode
 
 usageHeader = "Usage: OneSock [OPTION...]"
@@ -37,7 +38,7 @@ findMode fs =
     ms = filter isModeFlag fs
   in
     case ms of
-      []           -> error "No mode argument supplied"
+      []           -> RunGUI
       [ModeFlag m] -> m
       _            -> error "Only one mode argument can be supplied"
 
@@ -80,10 +81,9 @@ main = do
     DoScan -> do
       db <- getDefaultDBPath >>= initDB
       doScan db
-      
     StoreScan -> do
       db <- getDefaultDBPath >>= initDB
       case as of
         [] -> ioError $ userError $ "No scan files were supplied"
         _  -> mapM_ (doStoreScan db) as
-  
+    RunGUI -> runGUI

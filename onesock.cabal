@@ -14,8 +14,10 @@ Executable OneSock
     base >= 4,
     directory,
     HUnit,
+    QuickCheck,
     random,
     uuid, 
     bitmap,
     process,
-    gd >= 3000.4.1
+    gd >= 3000.4.1,
+    OpenGL, GLUT
