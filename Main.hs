@@ -1,7 +1,6 @@
 
 module Main where
 
-import Test.HUnit
 import System.Random
 import System.IO
 import System.Exit
@@ -16,18 +15,13 @@ import Data.UUID
 import qualified Graphics.GD as GD
 import GUI (runGUI)
 
-tests = TestList [
-          testsForOnesockDBScans
-        ]
-
-data Mode = Test | DoScan | StoreScan | RunGUI
+data Mode = DoScan | StoreScan | RunGUI
 data Flag = ModeFlag Mode
 
 usageHeader = "Usage: OneSock [OPTION...]"
 options =
   [ Option ['s']  ["scan"]        (NoArg (ModeFlag DoScan))     "scan and store to database"
   , Option ['S']  ["store-scan"]  (NoArg (ModeFlag StoreScan))  "store scan(s) to scan database"
-  , Option []     ["test"]        (NoArg (ModeFlag Test))       "run unit tests"
   ]
 
 findMode :: [Flag] -> Mode
@@ -75,9 +69,6 @@ main = do
     ioError $ userError $ concat errs ++ usageInfo usageHeader options
   let mode = findMode os
   case mode of
-    Test -> do
-      runTestTT tests
-      return ()
     DoScan -> do
       db <- getDefaultDBPath >>= initDB
       doScan db

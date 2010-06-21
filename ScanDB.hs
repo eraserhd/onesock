@@ -12,9 +12,7 @@ module ScanDB (
     getDefaultDBPath,
     initDB,
     storeScan,
-    lookupScan,
-
-    testsForOnesockDBScans
+    lookupScan
     ) where
 
 import Test.HUnit
@@ -111,9 +109,8 @@ withTestDb action = do
   finally (removeDirectoryRecursive testDbPath) $
     initDB testDbPath >>= action
 
-testsForOnesockDBScans =
-  TestLabel "Onesock.DB.Scans suite" $ TestList [
-    "storeScan writes file" ~: TestCase $
+test_storeScanWritesFile =
+  "storeScan writes file" ~: TestCase $
       withTestDb $ \db -> do
         id <- randomIO :: IO UUID
         sampleBitmap <- makeSampleBitmap
@@ -121,13 +118,14 @@ testsForOnesockDBScans =
         storeScan db scan
         let fname = dbPath db ++ "/scans/" ++ show id ++ ".png"
         doesFileExist fname >>= assertBool "image file does not exist"
-  , "lookupScan returns what was stored" ~: TestCase $
-      withTestDb $ \db -> do
-        id <- randomIO :: IO UUID
-        sampleBitmap <- makeSampleBitmap
-        let scan = Scan{scanId = id, scanBitmap = sampleBitmap}
-        storeScan db scan
-        scan' <- lookupScan db id
-        assertEqual "scanId scan'" (scanId scan) (scanId scan')
-        assertBitmapsSimilar (scanBitmap scan) (scanBitmap scan')
-  ]
+
+test_lookupScanReturnsWhatWasStored =
+  "lookupScan returns what was stored" ~: TestCase $
+    withTestDb $ \db -> do
+      id <- randomIO :: IO UUID
+      sampleBitmap <- makeSampleBitmap
+      let scan = Scan{scanId = id, scanBitmap = sampleBitmap}
+      storeScan db scan
+      scan' <- lookupScan db id
+      assertEqual "scanId scan'" (scanId scan) (scanId scan')
+      assertBitmapsSimilar (scanBitmap scan) (scanBitmap scan')
