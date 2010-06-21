@@ -9,7 +9,7 @@ Build-Type: Simple
 Cabal-Version: >= 1.2
 
 Executable OneSock
-  main-is: OneSock/Main.hs
+  main-is: Main.hs
   Build-Depends:
     base >= 4,
     directory,

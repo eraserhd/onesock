@@ -1,10 +1,10 @@
 
-module OneSock.GUI where
+module GUI where
 
 import Test.QuickCheck
 import Graphics.Rendering.OpenGL
 import Graphics.UI.GLUT
-import OneSock.DB.Scans
+import ScanDB
 import Data.UUID
 import qualified Data.Bitmap.IO as BM
 import Foreign.Ptr

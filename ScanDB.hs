@@ -1,5 +1,5 @@
 
-module OneSock.DB.Scans (
+module ScanDB (
     -- Types
     Scan(Scan),
     DB(),
@@ -25,7 +25,7 @@ import Data.Bitmap
 import Data.Bitmap.IO
 import Control.Exception
 import Control.Monad
-import OneSock.ImageUtil
+import ImageUtil
 import qualified Graphics.GD as GD
 
 data Scan = Scan { scanId :: UUID

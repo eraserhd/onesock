@@ -9,12 +9,12 @@ import System.Directory
 import System.Process
 import System.Environment (getArgs)
 import System.Console.GetOpt
-import OneSock.DB.Scans
-import OneSock.ImageUtil
+import ScanDB
+import ImageUtil
 import Control.Monad
 import Data.UUID
 import qualified Graphics.GD as GD
-import OneSock.GUI (runGUI)
+import GUI (runGUI)
 
 tests = TestList [
           testsForOnesockDBScans

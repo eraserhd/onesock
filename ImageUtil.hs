@@ -1,5 +1,5 @@
 
-module OneSock.ImageUtil (
+module ImageUtil (
   toGD,
   fromGD
   ) where
