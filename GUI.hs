@@ -97,8 +97,18 @@ unitVerticesWithSameAspect (w,h) =
      Vertex3 right bottom 0,
      Vertex3 left bottom 0)
 
-check = do
-  quickCheck (\(w,h) -> let (Vertex3 _ _ a, Vertex3 _ _ b, Vertex3 _ _ c, Vertex3 _ _ d) = unitVerticesWithSameAspect (w,h)
-                        in (a == 0) && (b == 0) && (c == 0) && (d == 0))
-  quickCheck (\(w,h) -> let (_, _, Vertex3 _ a _, Vertex3 _ b _) = unitVerticesWithSameAspect (w,h)
-                        in a == b)
+bitmapSizes :: Gen (Int, Int)
+bitmapSizes = do
+  w <- choose (1,1000)
+  h <- choose (1,1000)
+  return (w, h)
+
+prop_unitVerticesWithSameAspect_keeps_all_points_on_Z_plane =
+  forAll bitmapSizes $ \(w,h) ->
+  let (Vertex3 _ _ a, Vertex3 _ _ b, Vertex3 _ _ c, Vertex3 _ _ d) = unitVerticesWithSameAspect (w,h)
+  in (a == 0) && (b == 0) && (c == 0) && (d == 0)
+
+prop_unitVerticesWithSameAspect_keeps_right_side_aligned =
+  forAll bitmapSizes $ \(w,h) ->
+  let (_, _, Vertex3 _ a _, Vertex3 _ b _) = unitVerticesWithSameAspect (w,h)
+  in a == b
