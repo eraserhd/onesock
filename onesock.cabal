@@ -14,7 +14,7 @@ Executable OneSock
     base >= 4,
     directory,
     HUnit,
-    QuickCheck,
+    QuickCheck == 1.2.0.0,
     random,
     uuid, 
     bitmap,

@@ -67,8 +67,7 @@ main = do
   let (os,as,errs) = getOpt Permute options args
   when (errs /= []) $
     ioError $ userError $ concat errs ++ usageInfo usageHeader options
-  let mode = findMode os
-  case mode of
+  case findMode os of
     DoScan -> do
       db <- getDefaultDBPath >>= initDB
       doScan db
