@@ -15,6 +15,7 @@ import System.IO
 import System.Process
 import System.Random
 import ScanDB
+import qualified Test.HUnit as T
 
 data Mode = DoScan | StoreScan | RunGUI
 data Flag = ModeFlag Mode
@@ -37,8 +38,8 @@ findMode fs =
       [ModeFlag m] -> m
       _            -> error "Only one mode argument can be supplied"
 
-doScan :: DB -> IO ()
-doScan db = do
+cmdScan :: DB -> IO ()
+cmdScan db = do
   id <- randomIO :: IO UUID
   tmpDir <- getTemporaryDirectory
   let tiffFile = tmpDir ++ "/" ++ show id ++ ".tiff"
@@ -47,21 +48,32 @@ doScan db = do
   when (rc /= ExitSuccess) $ error "scanimage failed (is sane-utils installed?)"
   rc <- system $ "convert -scale 800 " ++ tiffFile ++ " " ++ pngFile
   when (rc /= ExitSuccess) $ error "convert failed (is imagemagick installed?)"
-  bitmap <- GD.loadPngFile pngFile >>= fromGD
+  storeScanFromFile db pngFile
   removeFile tiffFile
   removeFile pngFile
-  now <- getCurrentTime
-  let scan = Scan{scanId=id, scanTime=now, scanBitmap=bitmap}
-  storeScan db scan
   putStrLn $ show id
 
-doStoreScan :: DB -> FilePath -> IO ()
-doStoreScan db filename = do
+storeScanFromFile :: DB -> FilePath -> IO UUID
+storeScanFromFile db filename = do
   bitmap <- GD.loadPngFile filename >>= fromGD
   id <- randomIO :: IO UUID
   now <- getCurrentTime
   let scan = Scan{scanId=id, scanTime=now, scanBitmap=bitmap}
   storeScan db scan
+  return id
+
+test_storeScanFromFileUsesCurrentTime = do
+  withTestDb $ \db -> do
+  withTestBitmapFile $ \fn -> do
+  now <- getCurrentTime
+  id <- storeScanFromFile db fn
+  scan <- lookupScan db id
+  T.assertBool "store time is too far off" $ abs (diffUTCTime (scanTime scan) now) < 5.0
+  T.assertEqual "scanId scan" id (scanId scan)
+
+cmdStoreScan :: DB -> FilePath -> IO ()
+cmdStoreScan db filename = do
+  id <- storeScanFromFile db filename
   putStrLn $ filename ++ "=" ++ show id
 
 main :: IO ()
@@ -73,10 +85,10 @@ main = do
   case findMode os of
     DoScan -> do
       db <- getDefaultDBPath >>= initDB
-      doScan db
+      cmdScan db
     StoreScan -> do
       db <- getDefaultDBPath >>= initDB
       case as of
         [] -> ioError $ userError $ "No scan files were supplied"
-        _  -> mapM_ (doStoreScan db) as
+        _  -> mapM_ (cmdStoreScan db) as
     RunGUI -> runGUI

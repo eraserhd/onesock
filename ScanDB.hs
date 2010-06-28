@@ -13,7 +13,10 @@ module ScanDB (
     getDefaultDBPath,
     initDB,
     storeScan,
-    lookupScan
+    lookupScan,
+
+    -- Testing
+    withTestDb
     ) where
 
 import Control.Exception
@@ -24,7 +27,7 @@ import Data.Bitmap
 import Data.Bitmap.IO
 import Data.Time.Clock
 import Data.Time.Format
-import ImageUtil
+import ImageUtil (toGD, fromGD, makeSampleBitmap, assertBitmapsSimilar)
 import System.Directory
 import System.Locale
 import System.Random
@@ -75,12 +78,38 @@ storeScan db scan = do
   GD.savePngFile (scanImagePath db $ scanId scan) img
   writeFile (scanAnnotationsPath db $ scanId scan) $ toYaml $ scanAnnotations scan
 
+test_storeScanWritesFile =
+  "storeScan writes files" ~: TestCase $
+      withTestDb $ \db -> do
+        id <- randomIO :: IO UUID
+        sampleBitmap <- makeSampleBitmap
+        now <- getCurrentTime
+        let scan = Scan{scanId = id, scanTime = now, scanBitmap = sampleBitmap}
+        storeScan db scan
+        let pngFname = dbPath db ++ "/scans/" ++ show id ++ ".png"
+        doesFileExist pngFname >>= assertBool "image file does not exist"
+        let yamlFname = dbPath db ++ "/scans/" ++ show id ++ ".yaml"
+        doesFileExist yamlFname >>= assertBool "yaml file does not exist"
+
 -- | Retrieve a scan from a scan database
 lookupScan :: DB -> UUID -> IO Scan
 lookupScan db id = do
   bitmap <- GD.loadPngFile (scanImagePath db id) >>= fromGD
   annotations <- fromYaml `fmap` readFile (scanAnnotationsPath db id)
   return Scan{scanId=id, scanTime = annTime annotations, scanBitmap=bitmap}
+
+test_lookupScanReturnsWhatWasStored =
+  "lookupScan returns what was stored" ~: TestCase $
+    withTestDb $ \db -> do
+      id <- randomIO :: IO UUID
+      sampleBitmap <- makeSampleBitmap
+      now <- getCurrentTime
+      let scan = Scan{scanId = id, scanTime = addUTCTime (-47) now, scanBitmap = sampleBitmap}
+      storeScan db scan
+      scan' <- lookupScan db id
+      assertEqual "scanId scan'" (scanId scan) (scanId scan')
+      assertEqual "scanTime scan'" (scanTime scan) (scanTime scan')
+      assertBitmapsSimilar (scanBitmap scan) (scanBitmap scan')
 
 --
 -- Scan annotations
@@ -117,38 +146,7 @@ fromYaml s =
 scanAnnotations scan =
   Annotations{ annTime = scanTime scan }
 
---
--- Tests
---
-
-makeSampleBitmap = do
-  bitmap <- newBitmap (45, 45) 3 Nothing
-  mapM_ (\i -> unsafeWritePixel3 bitmap (i,i) (255,127,10)) [0..44]
-  return bitmap
-
--- For testing: Make sure two bitmaps are similar and have the same dimensions.
-assertBitmapsSimilar a b = do
-  let
-    (awidth, aheight) = bitmapSize a
-    (bwidth, bheight) = bitmapSize b
-  assertEqual "bwidth" awidth bwidth
-  assertEqual "bheight" aheight bheight
-
-  sum <- foldM (\acc (x,y) -> do
-    (ra,ga,ba) <- unsafeReadPixel3 a (x,y)
-    (rb,gb,bb) <- unsafeReadPixel3 b (x,y)
-    let rd = fromIntegral $ ra - rb :: Int
-    let gd = fromIntegral $ ga - gb :: Int
-    let bd = fromIntegral $ ba - bb :: Int
-    return $ acc + rd*rd + gd*gd + bd*bd
-    ) 0 [ (x,y) | x <- [0..(awidth-1)], y <- [0..(aheight-1)] ]
-
-  let err = sqrt $ (fromIntegral sum :: Double) /
-                   (fromIntegral (3*awidth*aheight) :: Double)
-  assertBool "bitmap error is too high" $ err < 2.0
-
--- For testing: set up and tear down a test database on the filesystem around
--- an I/O action.
+-- | Create a temporary db for the duration of an IO action
 withTestDb :: (DB -> IO a) -> IO ()
 withTestDb action = do
   tmpDir <- getTemporaryDirectory
@@ -157,28 +155,3 @@ withTestDb action = do
   finally (removeDirectoryRecursive testDbPath) $
     initDB testDbPath >>= action
 
-test_storeScanWritesFile =
-  "storeScan writes files" ~: TestCase $
-      withTestDb $ \db -> do
-        id <- randomIO :: IO UUID
-        sampleBitmap <- makeSampleBitmap
-        now <- getCurrentTime
-        let scan = Scan{scanId = id, scanTime = now, scanBitmap = sampleBitmap}
-        storeScan db scan
-        let pngFname = dbPath db ++ "/scans/" ++ show id ++ ".png"
-        doesFileExist pngFname >>= assertBool "image file does not exist"
-        let yamlFname = dbPath db ++ "/scans/" ++ show id ++ ".yaml"
-        doesFileExist yamlFname >>= assertBool "yaml file does not exist"
-
-test_lookupScanReturnsWhatWasStored =
-  "lookupScan returns what was stored" ~: TestCase $
-    withTestDb $ \db -> do
-      id <- randomIO :: IO UUID
-      sampleBitmap <- makeSampleBitmap
-      now <- getCurrentTime
-      let scan = Scan{scanId = id, scanTime = addUTCTime (-47) now, scanBitmap = sampleBitmap}
-      storeScan db scan
-      scan' <- lookupScan db id
-      assertEqual "scanId scan'" (scanId scan) (scanId scan')
-      assertEqual "scanTime scan'" (scanTime scan) (scanTime scan')
-      assertBitmapsSimilar (scanBitmap scan) (scanBitmap scan')
