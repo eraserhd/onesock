@@ -16,6 +16,8 @@ Executable OneSock
     HUnit,
     QuickCheck == 1.2.0.0,
     random,
+    time,
+    old-locale,
     uuid, 
     bitmap,
     process,

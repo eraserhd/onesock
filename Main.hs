@@ -1,19 +1,20 @@
 
 module Main where
 
-import System.Random
-import System.IO
-import System.Exit
-import System.Directory
-import System.Process
-import System.Environment (getArgs)
-import System.Console.GetOpt
-import ScanDB
-import ImageUtil
 import Control.Monad
+import Data.Time.Clock
 import Data.UUID
 import qualified Graphics.GD as GD
 import GUI (runGUI)
+import ImageUtil
+import System.Console.GetOpt
+import System.Directory
+import System.Environment (getArgs)
+import System.Exit
+import System.IO
+import System.Process
+import System.Random
+import ScanDB
 
 data Mode = DoScan | StoreScan | RunGUI
 data Flag = ModeFlag Mode
@@ -49,7 +50,8 @@ doScan db = do
   bitmap <- GD.loadPngFile pngFile >>= fromGD
   removeFile tiffFile
   removeFile pngFile
-  let scan = Scan{scanId=id, scanBitmap=bitmap}
+  now <- getCurrentTime
+  let scan = Scan{scanId=id, scanTime=now, scanBitmap=bitmap}
   storeScan db scan
   putStrLn $ show id
 
@@ -57,7 +59,8 @@ doStoreScan :: DB -> FilePath -> IO ()
 doStoreScan db filename = do
   bitmap <- GD.loadPngFile filename >>= fromGD
   id <- randomIO :: IO UUID
-  let scan = Scan{scanId=id, scanBitmap=bitmap}
+  now <- getCurrentTime
+  let scan = Scan{scanId=id, scanTime=now, scanBitmap=bitmap}
   storeScan db scan
   putStrLn $ filename ++ "=" ++ show id
 

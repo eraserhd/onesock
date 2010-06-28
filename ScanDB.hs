@@ -6,6 +6,7 @@ module ScanDB (
 
     -- Accessors
     scanId,
+    scanTime,
     scanBitmap,
 
     -- Operations
@@ -15,24 +16,34 @@ module ScanDB (
     lookupScan
     ) where
 
-import Test.HUnit
-import System.Random
-import System.Directory
+import Control.Exception
+import Control.Monad
+import Data.Char (isSpace)
 import Data.UUID
 import Data.Bitmap
 import Data.Bitmap.IO
-import Control.Exception
-import Control.Monad
+import Data.Time.Clock
+import Data.Time.Format
 import ImageUtil
+import System.Directory
+import System.Locale
+import System.Random
+import Test.HUnit
+import Test.QuickCheck
 import qualified Graphics.GD as GD
 
 data Scan = Scan { scanId :: UUID
+                 , scanTime :: UTCTime
                  , scanBitmap :: Bitmap Word8
                  }
 
 scanImagePath :: DB -> UUID -> FilePath
 scanImagePath db id =
   dbScanPath db ++ "/" ++ show id ++ ".png"
+
+scanAnnotationsPath :: DB -> UUID -> FilePath
+scanAnnotationsPath db id =
+  dbScanPath db ++ "/" ++ show id ++ ".yaml"
 
 data DB = DB { dbPath :: FilePath
              } deriving (Show, Eq)
@@ -62,12 +73,49 @@ storeScan :: DB -> Scan -> IO ()
 storeScan db scan = do
   img <- toGD $ scanBitmap scan
   GD.savePngFile (scanImagePath db $ scanId scan) img
+  writeFile (scanAnnotationsPath db $ scanId scan) $ toYaml $ scanAnnotations scan
 
 -- | Retrieve a scan from a scan database
 lookupScan :: DB -> UUID -> IO Scan
 lookupScan db id = do
   bitmap <- GD.loadPngFile (scanImagePath db id) >>= fromGD
-  return Scan{scanId=id, scanBitmap=bitmap}
+  annotations <- fromYaml `fmap` readFile (scanAnnotationsPath db id)
+  return Scan{scanId=id, scanTime = annTime annotations, scanBitmap=bitmap}
+
+--
+-- Scan annotations
+--
+
+data Annotations
+  = Annotations { annTime :: UTCTime }
+  deriving (Eq, Show)
+
+timeFormat = "%Y-%m-%d %X%Q"
+
+instance Arbitrary Annotations where
+  arbitrary = do
+    n <- choose (-1000,1000)
+    let time = readTime defaultTimeLocale timeFormat "2010-06-27 16:42:18.4322"
+    return Annotations{ annTime = addUTCTime (fromInteger n) time }
+    
+prop_annotationsRoundTripToYaml a =
+  (fromYaml . toYaml) a == a
+
+toYaml :: Annotations -> String
+toYaml a =
+  "scanTime: " ++ formatTime defaultTimeLocale timeFormat (annTime a) ++ "\n"
+
+fromYaml :: String -> Annotations
+fromYaml s =
+  let
+    l = head $ lines s
+    timeStr = dropWhile isSpace $ tail $ dropWhile (/= ':') l
+    time = readTime defaultTimeLocale timeFormat timeStr
+  in
+    Annotations{ annTime = time }
+
+scanAnnotations scan =
+  Annotations{ annTime = scanTime scan }
 
 --
 -- Tests
@@ -110,22 +158,27 @@ withTestDb action = do
     initDB testDbPath >>= action
 
 test_storeScanWritesFile =
-  "storeScan writes file" ~: TestCase $
+  "storeScan writes files" ~: TestCase $
       withTestDb $ \db -> do
         id <- randomIO :: IO UUID
         sampleBitmap <- makeSampleBitmap
-        let scan = Scan{scanId = id, scanBitmap = sampleBitmap}
+        now <- getCurrentTime
+        let scan = Scan{scanId = id, scanTime = now, scanBitmap = sampleBitmap}
         storeScan db scan
-        let fname = dbPath db ++ "/scans/" ++ show id ++ ".png"
-        doesFileExist fname >>= assertBool "image file does not exist"
+        let pngFname = dbPath db ++ "/scans/" ++ show id ++ ".png"
+        doesFileExist pngFname >>= assertBool "image file does not exist"
+        let yamlFname = dbPath db ++ "/scans/" ++ show id ++ ".yaml"
+        doesFileExist yamlFname >>= assertBool "yaml file does not exist"
 
 test_lookupScanReturnsWhatWasStored =
   "lookupScan returns what was stored" ~: TestCase $
     withTestDb $ \db -> do
       id <- randomIO :: IO UUID
       sampleBitmap <- makeSampleBitmap
-      let scan = Scan{scanId = id, scanBitmap = sampleBitmap}
+      now <- getCurrentTime
+      let scan = Scan{scanId = id, scanTime = addUTCTime (-47) now, scanBitmap = sampleBitmap}
       storeScan db scan
       scan' <- lookupScan db id
       assertEqual "scanId scan'" (scanId scan) (scanId scan')
+      assertEqual "scanTime scan'" (scanTime scan) (scanTime scan')
       assertBitmapsSimilar (scanBitmap scan) (scanBitmap scan')
