@@ -25,6 +25,34 @@ instance UI GtkUI where
 
   notifyScanAdded ui s = return ()
 
+scansViewNew = do
+  scansView <- treeViewNew
+
+  scansStore <- listStoreNew ["1", "2", "3"]
+  set scansView [ treeViewHeadersVisible := True
+                , treeViewModel := scansStore
+                ]
+
+  -- "Scanned At" column
+  dateCol <- treeViewColumnNew
+  dateColRenderer <- cellRendererTextNew
+  set dateCol [ treeViewColumnTitle := "Scanned At",
+                treeViewColumnFixedWidth := 50,
+                treeViewColumnResizable := True ]
+  treeViewColumnPackStart dateCol dateColRenderer False
+  treeViewAppendColumn scansView dateCol
+
+  -- "Pages" column
+  pageCol <- treeViewColumnNew
+  pageColRenderer <- cellRendererTextNew -- FIXME
+  set pageCol [ treeViewColumnTitle := "Pages",
+                treeViewColumnResizable := True ]
+  treeViewColumnPackStart pageCol pageColRenderer False
+  treeViewAppendColumn scansView pageCol
+
+  return scansView
+
+
 runGUI :: IO ()
 runGUI = do
   db <- getDefaultDBPath >>= initDB
@@ -41,7 +69,11 @@ runGUI = do
 
   boxPackStart mainVbox toolbar PackNatural 0
 
+  scansView <- scansViewNew
+
   scansScrolledWindow <- scrolledWindowNew Nothing Nothing
+  set scansScrolledWindow [ containerChild := scansView ]
+
   boxPackStart mainVbox scansScrolledWindow PackGrow 0
 
   statusbar <- statusbarNew

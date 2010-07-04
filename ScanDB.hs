@@ -35,10 +35,11 @@ import Test.HUnit
 import Test.QuickCheck
 import qualified Graphics.GD as GD
 
-data Scan = Scan { scanId :: UUID
-                 , scanTime :: UTCTime
-                 , scanBitmap :: Bitmap Word8
-                 }
+data Scan
+  = Scan { scanId :: UUID
+         , scanTime :: UTCTime
+         , scanBitmap :: Bitmap Word8
+         }
 
 scanImagePath :: DB -> UUID -> FilePath
 scanImagePath db id =
@@ -48,8 +49,9 @@ scanAnnotationsPath :: DB -> UUID -> FilePath
 scanAnnotationsPath db id =
   dbScanPath db ++ "/" ++ show id ++ ".yaml"
 
-data DB = DB { dbPath :: FilePath
-             } deriving (Show, Eq)
+data DB
+  = DB { dbPath :: FilePath
+       } deriving (Show, Eq)
 
 dbScanPath :: DB -> FilePath
 dbScanPath db =
