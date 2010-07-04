@@ -46,7 +46,7 @@ cmdScan db = do
   let pngFile = tmpDir ++ "/" ++ show id ++ ".png"
   rc <- system $ "scanimage --format=tiff --resolution=300 >" ++ tiffFile
   when (rc /= ExitSuccess) $ error "scanimage failed (is sane-utils installed?)"
-  rc <- system $ "convert -scale 800 " ++ tiffFile ++ " " ++ pngFile
+  rc <- system $ "convert " ++ tiffFile ++ " " ++ pngFile
   when (rc /= ExitSuccess) $ error "convert failed (is imagemagick installed?)"
   storeScanFromFile db pngFile
   removeFile tiffFile
