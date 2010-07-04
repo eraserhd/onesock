@@ -22,4 +22,4 @@ Executable OneSock
     bitmap,
     process,
     gd >= 3000.4.1,
-    OpenGL, GLUT
+    gtk, glade
