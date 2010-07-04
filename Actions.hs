@@ -1,4 +1,8 @@
-module Actions (cmdScan, cmdStoreScan) where
+module Actions (
+  UI, setStatus, notifyScanAdded,
+
+  cmdScan, cmdStoreScan,
+  ) where
 
 import Control.Monad (when)
 import Data.Time.Clock (getCurrentTime, diffUTCTime)
@@ -12,20 +16,30 @@ import System.Process (system)
 import System.Random (randomIO)
 import qualified Test.HUnit as T
 
-cmdScan :: DB -> IO ()
-cmdScan db = do
+class UI a where
+  setStatus :: a -> String -> IO ()
+  notifyScanAdded :: a -> UUID -> IO ()
+
+cmdScan :: UI ui => DB -> ui -> IO ()
+cmdScan db ui = do
   id <- randomIO :: IO UUID
   tmpDir <- getTemporaryDirectory
   let tiffFile = tmpDir ++ "/" ++ show id ++ ".tiff"
   let pngFile = tmpDir ++ "/" ++ show id ++ ".png"
+  setStatus ui "Scanning..."
   rc <- system $ "scanimage --format=tiff --resolution=300 >" ++ tiffFile
-  when (rc /= ExitSuccess) $ error "scanimage failed (is sane-utils installed?)"
-  rc <- system $ "convert " ++ tiffFile ++ " " ++ pngFile
-  when (rc /= ExitSuccess) $ error "convert failed (is imagemagick installed?)"
-  storeScanFromFile db pngFile
-  removeFile tiffFile
-  removeFile pngFile
-  putStrLn $ show id
+  (case rc of
+    ExitSuccess -> do
+      setStatus ui "Converting..."
+      rc <- system $ "convert " ++ tiffFile ++ " " ++ pngFile
+      case rc of
+        ExitSuccess -> do
+          storeScanFromFile db pngFile
+          removeFile tiffFile
+          removeFile pngFile
+          setStatus ui $ "Done scanning " ++ show id
+        _ -> setStatus ui "convert failed (is imagemagick installed?)"
+    _ -> setStatus ui "scanimage failed (is sane-utils installed?)")
 
 storeScanFromFile :: DB -> FilePath -> IO UUID
 storeScanFromFile db filename = do
@@ -45,7 +59,7 @@ test_storeScanFromFileUsesCurrentTime = do
   T.assertBool "store time is too far off" $ abs (diffUTCTime (scanTime scan) now) < 5.0
   T.assertEqual "scanId scan" id (scanId scan)
 
-cmdStoreScan :: DB -> FilePath -> IO ()
-cmdStoreScan db filename = do
+cmdStoreScan :: UI ui => DB -> ui -> FilePath -> IO ()
+cmdStoreScan db ui filename = do
   id <- storeScanFromFile db filename
   putStrLn $ filename ++ "=" ++ show id

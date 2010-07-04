@@ -35,6 +35,11 @@ findMode fs =
       [ModeFlag m] -> m
       _            -> error "Only one mode argument can be supplied"
 
+data CommandLineUI = CommandLineUI
+instance UI CommandLineUI where
+  setStatus _ = putStrLn
+  notifyScanAdded _ _ = return ()
+
 main :: IO ()
 main = do
   args <- getArgs
@@ -44,10 +49,10 @@ main = do
   case findMode os of
     DoScan -> do
       db <- getDefaultDBPath >>= initDB
-      cmdScan db
+      cmdScan db CommandLineUI
     StoreScan -> do
       db <- getDefaultDBPath >>= initDB
       case as of
         [] -> ioError $ userError $ "No scan files were supplied"
-        _  -> mapM_ (cmdStoreScan db) as
+        _  -> mapM_ (cmdStoreScan db CommandLineUI) as
     RunGUI -> runGUI
