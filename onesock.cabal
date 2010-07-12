@@ -22,4 +22,5 @@ Executable OneSock
     bitmap,
     process,
     gd >= 3000.4.1,
-    gtk, glade
+    gtk, glade,
+    lrucache >= 1.0

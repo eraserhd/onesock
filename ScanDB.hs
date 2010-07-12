@@ -7,7 +7,6 @@ module ScanDB (
     -- Accessors
     scanId,
     scanTime,
-    scanBitmap,
 
     -- Operations
     getDefaultDBPath,
@@ -19,6 +18,7 @@ module ScanDB (
     withTestDb
     ) where
 
+import CachingImageDB (CachingImageDB, openCachingImageDB, ImageSizeType, storeImage, lookupImage)
 import Control.Exception
 import Control.Monad
 import Data.Char (isSpace)
@@ -38,7 +38,6 @@ import qualified Graphics.GD as GD
 data Scan
   = Scan { scanId :: UUID
          , scanTime :: UTCTime
-         , scanBitmap :: Bitmap Word8
          }
 
 scanImagePath :: DB -> UUID -> FilePath
@@ -50,8 +49,9 @@ scanAnnotationsPath db id =
   dbScanPath db ++ "/" ++ show id ++ ".yaml"
 
 data DB
-  = DB { dbPath :: FilePath
-       } deriving (Show, Eq)
+  = DB { dbPath           :: FilePath
+       , dbCachingImageDB :: CachingImageDB
+       }
 
 dbScanPath :: DB -> FilePath
 dbScanPath db =
@@ -71,13 +71,13 @@ initDB p =
   in do
     maybeMkdir p
     maybeMkdir $ p ++ "/scans"
-    return DB{dbPath=p}
+    idb <- openCachingImageDB $ p ++ "/scans"
+    return DB{dbPath=p, dbCachingImageDB=idb}
 
 -- | Store a scan into a scan database
-storeScan :: DB -> Scan -> IO ()
-storeScan db scan = do
-  img <- toGD $ scanBitmap scan
-  GD.savePngFile (scanImagePath db $ scanId scan) img
+storeScan :: DB -> Scan -> Bitmap Word8 -> IO ()
+storeScan db scan bmap = do
+  storeImage (dbCachingImageDB db) (scanId scan) bmap
   writeFile (scanAnnotationsPath db $ scanId scan) $ toYaml $ scanAnnotations scan
 
 test_storeScanWritesFile =
@@ -86,8 +86,8 @@ test_storeScanWritesFile =
         id <- randomIO :: IO UUID
         sampleBitmap <- makeSampleBitmap
         now <- getCurrentTime
-        let scan = Scan{scanId = id, scanTime = now, scanBitmap = sampleBitmap}
-        storeScan db scan
+        let scan = Scan{scanId = id, scanTime = now}
+        storeScan db scan sampleBitmap
         let pngFname = dbPath db ++ "/scans/" ++ show id ++ ".png"
         doesFileExist pngFname >>= assertBool "image file does not exist"
         let yamlFname = dbPath db ++ "/scans/" ++ show id ++ ".yaml"
@@ -96,9 +96,8 @@ test_storeScanWritesFile =
 -- | Retrieve a scan from a scan database
 lookupScan :: DB -> UUID -> IO Scan
 lookupScan db id = do
-  bitmap <- GD.loadPngFile (scanImagePath db id) >>= fromGD
   annotations <- fromYaml `fmap` readFile (scanAnnotationsPath db id)
-  return Scan{scanId=id, scanTime = annTime annotations, scanBitmap=bitmap}
+  return Scan{scanId=id, scanTime=annTime annotations}
 
 test_lookupScanReturnsWhatWasStored =
   "lookupScan returns what was stored" ~: TestCase $
@@ -106,12 +105,11 @@ test_lookupScanReturnsWhatWasStored =
       id <- randomIO :: IO UUID
       sampleBitmap <- makeSampleBitmap
       now <- getCurrentTime
-      let scan = Scan{scanId = id, scanTime = addUTCTime (-47) now, scanBitmap = sampleBitmap}
-      storeScan db scan
+      let scan = Scan{scanId = id, scanTime = addUTCTime (-47) now}
+      storeScan db scan sampleBitmap
       scan' <- lookupScan db id
       assertEqual "scanId scan'" (scanId scan) (scanId scan')
       assertEqual "scanTime scan'" (scanTime scan) (scanTime scan')
-      assertBitmapsSimilar (scanBitmap scan) (scanBitmap scan')
 
 --
 -- Scan annotations

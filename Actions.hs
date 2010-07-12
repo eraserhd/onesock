@@ -46,8 +46,8 @@ storeScanFromFile db filename = do
   bitmap <- GD.loadPngFile filename >>= fromGD
   id <- randomIO :: IO UUID
   now <- getCurrentTime
-  let scan = Scan{scanId=id, scanTime=now, scanBitmap=bitmap}
-  storeScan db scan
+  let scan = Scan{scanId=id, scanTime=now}
+  storeScan db scan bitmap
   return id
 
 test_storeScanFromFileUsesCurrentTime = do
